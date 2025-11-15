@@ -1,0 +1,57 @@
+#!/bin/bash
+#SBATCH --job-name=train_yolo_seg
+#SBATCH --output=log_yolo_seg_%j.out
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=24
+#SBATCH --mem=32G
+#SBATCH --time=24:00:00
+#SBATCH --partition=intel-128
+ 
+# ==============================
+#  AMBIENTE E CONFIGURAÇÕES
+# ==============================
+ 
+# Carrega módulos necessários
+module load softwares/python/3.10.5-gnu8
+module load libraries/opencv/4.5.5-gnu8   # evita erro libGL.so.1
+ 
+# Vai para a pasta principal do projeto
+cd /home/edcpinheiro
+ 
+# Ativa o ambiente virtual existente
+source ~/venvs/yolo_cpu_env/bin/activate
+ 
+# ==============================
+#  LOCALIZA O MODELO BASE
+# ==============================
+# Encontra o best.pt mais recente da pasta anterior de detecção
+BEST_PT=$(find /home/edcpinheiro/runs/segment/ -type f -name "best.pt" | sort -t '/' -k6 -Vr | head -n1)
+ 
+# Verifica se o arquivo foi encontrado
+if [ -z "$BEST_PT" ]; then
+    echo "Nenhum arquivo best.pt encontrado em /home/edcpinheiro/runs/segment/"
+    echo "O treinamento começará do modelo pré-treinado padrão YOLOv8s-seg.pt"
+    BEST_PT="yolov8s-seg.pt"
+else
+    echo "Usando modelo pré-treinado encontrado: $BEST_PT"
+fi
+ 
+# ==============================
+#  TREINAMENTO DE SEGMENTAÇÃO
+# ==============================
+ 
+# Executa o treinamento YOLOv8 para SEGMENTAÇÃO
+yolo segment train \
+    model=$BEST_PT \
+    data=/home/edcpinheiro/VERSOES_DO_DATASET/data.yaml \
+    epochs=100 \
+    imgsz=640 \
+    batch=32 \
+    device=cpu \
+    project=/home/edcpinheiro/runs/segment \
+    name=yolov8_seg_finetune
+ 
+# ==============================
+#  FINALIZAÇÃO
+# ==============================
+echo "Treinamento de segmentação finalizado com sucesso!"
